@@ -272,3 +272,48 @@ export const verifyAttachments = createServerFn({ method: "POST" })
       ok: missing.length === 0,
     };
   });
+
+/** Snapshot sistem: daftar akun, bucket penyimpanan, dan struktur tabel (untuk backup penuh). */
+export const getSystemSnapshot = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { assertAdmin } = await import("@/lib/backup.server");
+    const { BACKUP_TABLES, BACKUP_BUCKETS } = await import("@/lib/backup-meta");
+    await assertAdmin(context.supabase as never, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const accounts: { id: string; email: string | null; created_at: string }[] = [];
+    try {
+      const { data } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      for (const u of data?.users ?? []) {
+        accounts.push({ id: u.id, email: u.email ?? null, created_at: u.created_at });
+      }
+    } catch {
+      // Daftar akun tidak tersedia — snapshot tetap dibuat tanpa bagian ini.
+    }
+
+    const columns: Record<string, string[]> = {};
+    for (const table of BACKUP_TABLES) {
+      const { data } = await supabaseAdmin.from(table).select("*").limit(1);
+      const row = (data ?? [])[0] as Record<string, unknown> | undefined;
+      columns[table] = row ? Object.keys(row) : [];
+    }
+
+    return {
+      snapshotJson: JSON.stringify(
+        {
+          version: 1,
+          created_at: new Date().toISOString(),
+          school: "SMK Borneo Lestari",
+          accounts,
+          account_count: accounts.length,
+          buckets: BACKUP_BUCKETS,
+          tables: BACKUP_TABLES,
+          table_columns: columns,
+        },
+        null,
+        2,
+      ),
+      accountCount: accounts.length,
+    };
+  });

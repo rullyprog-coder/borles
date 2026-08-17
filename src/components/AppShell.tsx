@@ -24,8 +24,11 @@ import { Button } from "@/components/ui/button";
 /** Indikator koneksi database di header aplikasi. */
 export function DbStatusBadge() {
   const { status, checkedAt } = useDbStatus();
+  const { isAdmin } = useCurrentUser();
+  const onlineLabel = isAdmin ? "Database terhubung" : "Terhubung Dengan Server";
+  const offlineLabel = isAdmin ? "Database putus" : "Terputus Dari Server";
   const label =
-    status === "online" ? "Database terhubung" : status === "offline" ? "Database putus" : "Memeriksa…";
+    status === "online" ? onlineLabel : status === "offline" ? offlineLabel : "Memeriksa…";
   return (
     <span
       title={checkedAt ? `Diperiksa ${checkedAt.toLocaleTimeString("id-ID")}` : undefined}

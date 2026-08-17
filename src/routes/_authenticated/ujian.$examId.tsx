@@ -195,6 +195,7 @@ function AttemptPage() {
         return;
       }
       writeDrafts(examId, {});
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
       toast.success(auto ? "Waktu habis — jawaban dikumpulkan otomatis" : "Ujian berhasil dikumpulkan");
       navigate({ to: "/ujian" });
     },
@@ -307,6 +308,43 @@ function AttemptPage() {
     return () => window.removeEventListener("popstate", onPopState);
   }, [attemptId, logViolation]);
 
+  // Mode terkunci: layar penuh + blokir tombol pintas keluar/refresh selama ujian
+  useEffect(() => {
+    if (!attemptId || locked) return;
+    const el = document.documentElement;
+    const enterFullscreen = () => {
+      if (!document.fullscreenElement && el.requestFullscreen) {
+        void el.requestFullscreen().catch(() => undefined);
+      }
+    };
+    enterFullscreen();
+    const onFullscreenChange = () => {
+      if (submittedRef.current) return;
+      if (!document.fullscreenElement) {
+        void logViolation("leave");
+        toast.warning("Layar penuh dimatikan. Halaman ujian tetap terkunci.");
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (submittedRef.current) return;
+      const key = event.key.toLowerCase();
+      const blocked =
+        key === "f5" ||
+        ((event.ctrlKey || event.metaKey) && ["r", "w", "t", "n", "p", "s"].includes(key)) ||
+        (event.altKey && (key === "arrowleft" || key === "arrowright"));
+      if (blocked) {
+        event.preventDefault();
+        toast.warning("Tombol ini dinonaktifkan selama ujian berlangsung.");
+      }
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    window.addEventListener("keydown", onKeyDown, { capture: true });
+    return () => {
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+      window.removeEventListener("keydown", onKeyDown, { capture: true } as never);
+    };
+  }, [attemptId, locked, logViolation]);
+
 
   async function saveAnswer(questionId: string, selected: string[]) {
     if (!attemptId) return;
@@ -408,8 +446,13 @@ function AttemptPage() {
 
 
   return (
-    <AppShell>
-      <div className="sticky top-0 z-10 -mx-4 mb-6 border-b bg-background/90 px-4 py-3 backdrop-blur md:-mx-8 md:px-8">
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto max-w-6xl px-4 pb-16 pt-4 md:px-8">
+      <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-700 dark:text-amber-400">
+        <AlertTriangle className="size-4 shrink-0" />
+        Mode terkunci: menu navigasi dinonaktifkan sampai Anda menekan “Kumpulkan”.
+      </div>
+      <div className="sticky top-0 z-10 -mx-4 mb-6 border-b bg-background/95 px-4 py-3 backdrop-blur md:-mx-8 md:px-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="font-display text-xl font-bold">{exam.data?.title ?? "Ujian"}</h1>
@@ -636,7 +679,7 @@ function AttemptPage() {
           </div>
         </aside>
       </div>
-
-    </AppShell>
+      </div>
+    </div>
   );
 }
