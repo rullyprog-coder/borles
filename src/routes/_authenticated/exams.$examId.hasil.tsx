@@ -73,7 +73,10 @@ function ResultsPage() {
 
   const attempts = useQuery({
     queryKey: ["attempts", examId],
+    // Pantau pelanggaran (pindah tab / keluar halaman) hampir real-time.
+    refetchInterval: 10000,
     queryFn: async () => {
+
       const { data: rows } = await supabase
         .from("exam_attempts")
         .select("*")
