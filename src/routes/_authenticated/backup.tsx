@@ -115,7 +115,10 @@ type RestoreSummary = {
   restoredTables: Record<string, number>;
   restoredAttachments: number;
   failedAttachments: string[];
+  mode: "data-saja" | "data-dan-sistem" | "tidak-diketahui";
+  systemAccounts: number | null;
 };
+
 
 type Verification = Awaited<ReturnType<typeof verifyAttachments>>;
 
