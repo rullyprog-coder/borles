@@ -410,6 +410,54 @@ function ResultsPage() {
       </section>
       )}
 
+      {!selected && attemptList.length > 0 && (
+        <section className="mb-8 rounded-xl border bg-card p-5 shadow-soft">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="font-display text-lg font-bold">Pengawasan Kecurangan</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Terdeteksi otomatis saat siswa pindah tab atau keluar dari halaman ujian.
+                Diperbarui tiap 10 detik.
+              </p>
+            </div>
+            <Badge variant="outline" className="gap-1">
+              <ShieldAlert className="size-3.5" />
+              {violationList.length} siswa terdeteksi
+            </Badge>
+          </div>
+
+          {violationList.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Belum ada pelanggaran terdeteksi.
+            </p>
+          ) : (
+            <ul className="mt-4 divide-y">
+              {violationList.map((a) => (
+                <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">
+                      {a.student?.full_name ?? "Siswa"}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {a.student?.class_name ?? "-"} • {a.student?.identifier ?? "-"} •{" "}
+                      {STATUS_LABEL[a.status] ?? a.status}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="destructive">Pindah tab {a.tab_switches ?? 0}x</Badge>
+                    <Badge variant="secondary">Keluar halaman {a.leave_attempts ?? 0}x</Badge>
+                    <Button variant="outline" size="sm" onClick={() => setSelectedId(a.id)}>
+                      Detail
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+
       {selected && perQuestion.length > 0 && attemptList.length > 0 && (
         <section className="mb-8 rounded-xl border bg-card p-5 shadow-soft">
           <h2 className="font-display text-lg font-bold">Analisis Butir Soal</h2>
