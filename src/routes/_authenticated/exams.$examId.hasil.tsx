@@ -119,6 +119,20 @@ function ResultsPage() {
   );
   const answerList = useMemo(() => answers.data ?? [], [answers.data]);
 
+  // Siswa dengan pelanggaran pindah tab / keluar halaman, terbanyak di atas.
+  const violationList = useMemo(
+    () =>
+      attemptList
+        .filter((a) => (a.tab_switches ?? 0) > 0 || (a.leave_attempts ?? 0) > 0)
+        .sort(
+          (a, b) =>
+            (b.tab_switches ?? 0) + (b.leave_attempts ?? 0) -
+            ((a.tab_switches ?? 0) + (a.leave_attempts ?? 0)),
+        ),
+    [attemptList],
+  );
+
+
   const avgClass = useMemo(() => classAverage(attemptList), [attemptList]);
   const perQuestion = useMemo(
     () =>
