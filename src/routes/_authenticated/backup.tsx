@@ -367,6 +367,9 @@ function BackupPage() {
         restoredTables: tablesResult.restored,
         restoredAttachments: uploaded,
         failedAttachments: failed,
+        mode,
+        systemAccounts,
+
       });
       setVerification(verify);
       setRestoreProgress(100);
