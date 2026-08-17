@@ -28,6 +28,7 @@ import {
 import {
   downloadAttachmentBatch,
   getBackupManifest,
+  getSystemSnapshot,
   restoreTables,
   uploadAttachmentBatch,
   verifyAttachments,
@@ -123,7 +124,8 @@ function BackupPage() {
   const queryClient = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const [includeAttachments, setIncludeAttachments] = useState(true);
+  const [backupMode, setBackupMode] = useState<"data" | "full">("full");
+  const includeAttachments = backupMode === "full";
   const [backupBusy, setBackupBusy] = useState(false);
   const [backupStep, setBackupStep] = useState("");
   const [backupProgress, setBackupProgress] = useState(0);
@@ -141,6 +143,7 @@ function BackupPage() {
   const runRestoreTables = useServerFn(restoreTables);
   const runUploadBatch = useServerFn(uploadAttachmentBatch);
   const runVerify = useServerFn(verifyAttachments);
+  const runSystemSnapshot = useServerFn(getSystemSnapshot);
 
   async function handleBackup() {
     setBackupBusy(true);
@@ -181,16 +184,30 @@ function BackupPage() {
         }
       }
 
+      let accountCount = 0;
+      if (backupMode === "full") {
+        setBackupStep("Mengemas snapshot sistem…");
+        try {
+          const system = await runSystemSnapshot();
+          zipEntries["sistem/snapshot-sistem.json"] = strToU8(system.snapshotJson);
+          accountCount = system.accountCount;
+        } catch (error) {
+          toast.warning("Snapshot sistem dilewati: " + (error as Error).message);
+        }
+      }
+
       zipEntries["manifest.json"] = strToU8(
         JSON.stringify(
           {
             version: 3,
+            mode: backupMode === "full" ? "data-dan-sistem" : "data-saja",
             created_at: new Date().toISOString(),
             counts: manifest.counts,
             total_rows: manifest.totalRows,
             attachments: attachments.length,
             attachments_included: included,
             attachments_skipped: skipped,
+            system_accounts: accountCount,
           },
           null,
           2,
@@ -204,7 +221,7 @@ function BackupPage() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `backup-borles-${formatTimestamp(new Date())}.zip`;
+      link.download = `backup-borles-${backupMode === "full" ? "sistem" : "data"}-${formatTimestamp(new Date())}.zip`;
       link.click();
       URL.revokeObjectURL(url);
 
@@ -383,16 +400,42 @@ function BackupPage() {
             pemulihan lebih mudah dan berkas dapat dibuka langsung.
           </p>
 
-          <label className="mt-4 flex items-center gap-2.5 text-sm">
-            <input
-              type="checkbox"
-              className="size-4 accent-[hsl(var(--primary))]"
-              checked={includeAttachments}
-              onChange={(e) => setIncludeAttachments(e.target.checked)}
-              disabled={backupBusy}
-            />
-            Sertakan semua lampiran (PDF/gambar) di dalam ZIP
-          </label>
+          <fieldset className="mt-4 space-y-2.5" disabled={backupBusy}>
+            <legend className="mb-2 text-sm font-medium">Pilih jenis backup</legend>
+            {(
+              [
+                {
+                  value: "data" as const,
+                  title: "Backup data saja",
+                  desc: "Hanya data.json (kelas, kurikulum, mapel, ujian, soal, nilai). Ukuran kecil dan cepat.",
+                },
+                {
+                  value: "full" as const,
+                  title: "Backup data dan semua sistem",
+                  desc: "data.json + seluruh lampiran PDF/gambar + snapshot sistem (daftar akun, bucket, struktur tabel).",
+                },
+              ]
+            ).map((option) => (
+              <label
+                key={option.value}
+                className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition-colors ${
+                  backupMode === option.value ? "border-primary bg-primary/5" : "hover:bg-accent"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="backup-mode"
+                  className="mt-1 size-4 accent-[hsl(var(--primary))]"
+                  checked={backupMode === option.value}
+                  onChange={() => setBackupMode(option.value)}
+                />
+                <span>
+                  <span className="font-medium">{option.title}</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">{option.desc}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
 
           <Button className="mt-5" onClick={() => void handleBackup()} disabled={backupBusy}>
             {backupBusy ? (
