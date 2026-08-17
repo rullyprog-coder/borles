@@ -611,13 +611,31 @@ function BackupPage() {
           )}
 
           {restoreSummary && (
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <StatBox label="Baris dipulihkan" value={String(restoreSummary.restoredRows)} />
-              <StatBox
-                label="Lampiran dipulihkan"
-                value={String(restoreSummary.restoredAttachments)}
-              />
-            </div>
+            <>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <StatBox label="Baris dipulihkan" value={String(restoreSummary.restoredRows)} />
+                <StatBox
+                  label="Lampiran dipulihkan"
+                  value={String(restoreSummary.restoredAttachments)}
+                />
+              </div>
+              <div className="mt-3 rounded-lg border border-border bg-muted/40 p-3 text-sm">
+                <p className="font-medium">
+                  Jenis backup terdeteksi:{" "}
+                  {restoreSummary.mode === "data-dan-sistem"
+                    ? "Data dan semua sistem"
+                    : restoreSummary.mode === "data-saja"
+                      ? "Data saja"
+                      : "Tidak diketahui"}
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  {restoreSummary.mode === "data-dan-sistem"
+                    ? `Data akademik + lampiran dipulihkan. Snapshot sistem${restoreSummary.systemAccounts !== null ? ` (${restoreSummary.systemAccounts} akun)` : ""} hanya sebagai referensi — akun & peran pengguna tidak ditimpa demi keamanan.`
+                    : "Berkas hanya memuat data akademik, jadi lampiran dan snapshot sistem tidak diubah."}
+                </p>
+              </div>
+            </>
+
           )}
 
           {verification && (
