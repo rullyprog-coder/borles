@@ -536,7 +536,16 @@ function ResultsPage() {
                       {attempt.student?.class_name ?? "-"}
                     </p>
                   </div>
-                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="flex shrink-0 items-center gap-2">
+                    {((attempt.tab_switches ?? 0) > 0 || (attempt.leave_attempts ?? 0) > 0) && (
+                      <Badge variant="destructive" className="gap-1">
+                        <ShieldAlert className="size-3" />
+                        {(attempt.tab_switches ?? 0) + (attempt.leave_attempts ?? 0)}
+                      </Badge>
+                    )}
+                    <ChevronRight className="size-4 text-muted-foreground" />
+                  </span>
+
                 </button>
               );
             })}
