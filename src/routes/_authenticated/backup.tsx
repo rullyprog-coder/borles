@@ -261,6 +261,8 @@ function BackupPage() {
     try {
       const isZip = file.name.toLowerCase().endsWith(".zip");
       let dataJson = "";
+      let mode: RestoreSummary["mode"] = "tidak-diketahui";
+      let systemAccounts: number | null = null;
       const attachmentEntries: { bucket: string; path: string; bytes: Uint8Array }[] = [];
 
       if (isZip) {
@@ -269,6 +271,34 @@ function BackupPage() {
         const dataEntry = unzipped["data.json"];
         if (!dataEntry) throw new Error("ZIP tidak memuat data.json.");
         dataJson = strFromU8(dataEntry);
+
+        // Kenali jenis backup dari manifest & snapshot sistem bila ada.
+        const manifestEntry = unzipped["manifest.json"];
+        if (manifestEntry) {
+          try {
+            const m = JSON.parse(strFromU8(manifestEntry)) as {
+              mode?: string;
+              system_accounts?: number;
+            };
+            if (m.mode === "data-dan-sistem" || m.mode === "data-saja") mode = m.mode;
+            if (typeof m.system_accounts === "number") systemAccounts = m.system_accounts;
+          } catch {
+            // manifest rusak — abaikan, restore data tetap berjalan.
+          }
+        }
+        const snapshotEntry = unzipped["sistem/snapshot-sistem.json"];
+        if (snapshotEntry) {
+          mode = "data-dan-sistem";
+          if (systemAccounts === null) {
+            try {
+              const s = JSON.parse(strFromU8(snapshotEntry)) as { account_count?: number };
+              if (typeof s.account_count === "number") systemAccounts = s.account_count;
+            } catch {
+              // snapshot rusak — abaikan.
+            }
+          }
+        }
+
         for (const [name, bytes] of Object.entries(unzipped)) {
           if (!name.startsWith("lampiran/") || bytes.length === 0) continue;
           const rest = name.slice("lampiran/".length);
@@ -279,6 +309,8 @@ function BackupPage() {
           if (!BACKUP_BUCKETS.includes(bucket as (typeof BACKUP_BUCKETS)[number])) continue;
           attachmentEntries.push({ bucket, path, bytes });
         }
+        if (mode === "tidak-diketahui")
+          mode = attachmentEntries.length > 0 ? "data-dan-sistem" : "data-saja";
       } else {
         // Kompatibilitas berkas backup JSON lama (lampiran base64 di dalam JSON).
         dataJson = await file.text();
@@ -290,7 +322,9 @@ function BackupPage() {
             attachmentEntries.push({ bucket, path: entry.path, bytes: base64ToBytes(entry.data_base64) });
           }
         }
+        mode = attachmentEntries.length > 0 ? "data-dan-sistem" : "data-saja";
       }
+
 
       setRestoreStep("Memulihkan data akademik…");
       setRestoreProgress(12);
